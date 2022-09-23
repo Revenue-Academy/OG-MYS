@@ -23,17 +23,17 @@ def get_macro_params():
     baseline_date = datetime.datetime(2019, 3, 31)
 
     variable_dict = {
-        "GDP Per Capita": "NYGDPPCAPKDIND",
-        "Labor share": "LABSHPINA156NRUG",
-        "Debt to GDP ratio": "GGGDTAINA188N",
+        "GDP Per Capita": "NYGDPPCAPKDMYS",
+        "Labor share": "LABSHPMYA156NRUG",
+        "Debt to GDP ratio": "DEBTTLMYA188A",
         #"BAA Corp Bond Rates": "DBAA",
-        "10 year govt bond rate": "INDIRLTLT01STM",
+        # "10 year govt bond rate": "INDIRLTLT01STM",
         #"Total gov transfer payments": "B087RC1Q027SBEA",
         #"Social Security payments": "W823RC1",
-        "Gov expenditures": "INDGFCEQDSMEI",
+        "Gov expenditures to GDP": "CSHGCPMYA156NRUG",
         #"Gov interest payments": "A091RC1Q027SBEA",
-        "Real GDP": "RGDPNAINA666NRUG",
-        "Nominal GDP": "MKTGDPINA646NWDB",
+        "Real GDP": "RGDPNAMYA666NRUG",
+        "Nominal GDP": "MKTGDPMYA646NWDB",
     }
 
     # pull series of interest using pandas_datareader
@@ -53,7 +53,7 @@ def get_macro_params():
                 "Nominal GDP",
                 "Total gov transfer payments",
                 "Social Security payments",
-                "Gov expenditures",
+                "Gov expenditures to",
                 "Gov interest payments",
                 "GDP Per Capita",
             ]
