@@ -38,8 +38,8 @@ class Calibration:
                 run_micro=True,
                 tax_func_path=tax_func_path,
             )
-        if estimate_beta:
-            self.beta_j = estimate_beta_j.beta_estimate(self)
+        # if estimate_beta:
+        #     self.beta_j = estimate_beta_j.beta_estimate(self)
         # if estimate_chi_n:
         #     chi_n = self.get_chi_n()
 
@@ -47,26 +47,26 @@ class Calibration:
         self.macro_params = macro_params.get_macro_params()
 
         # eta estimation
-        self.eta = transfer_distribution.get_transfer_matrix()
+        # self.eta = transfer_distribution.get_transfer_matrix()
 
         # zeta estimation
-        self.zeta = bequest_transmission.get_bequest_matrix()
+        # self.zeta = bequest_transmission.get_bequest_matrix()
 
         # demographics
-        self.demographic_params = demographics.get_pop_objs(
-            p.E, p.S, p.T, 1, 100, p.start_year
-        )
+        # self.demographic_params = demographics.get_pop_objs(
+        #     p.E, p.S, p.T, 1, 100, p.start_year
+        # )
         # demographics for 80 period lives (needed for getting e below)
-        demog80 = demographics.get_pop_objs(20, 80, p.T, 1, 100, p.start_year)
+        # demog80 = demographics.get_pop_objs(20, 80, p.T, 1, 100, p.start_year)
 
         # earnings profiles
-        self.e = income.get_e_interp(
-            p.S,
-            self.demographic_params["omega_SS"],
-            demog80["omega_SS"],
-            p.lambdas,
-            plot=False,
-        )
+        # self.e = income.get_e_interp(
+        #     p.S,
+        #     self.demographic_params["omega_SS"],
+        #     demog80["omega_SS"],
+        #     p.lambdas,
+        #     plot=False,
+        # )
 
     # Tax Functions
     def get_tax_function_parameters(
@@ -364,14 +364,14 @@ class Calibration:
         dict = {}
         if self.estimate_tax_functions:
             dict.update(self.tax_function_params)
-        if self.estimate_beta:
-            dict["beta_annual"] = self.beta
-        if self.estimate_chi_n:
-            dict["chi_n"] = self.chi_n
-        dict["eta"] = self.eta
-        dict["zeta"] = self.zeta
+        # if self.estimate_beta:
+        #     dict["beta_annual"] = self.beta
+        # if self.estimate_chi_n:
+        #     dict["chi_n"] = self.chi_n
+        # dict["eta"] = self.eta
+        # dict["zeta"] = self.zeta
         dict.update(self.macro_params)
-        dict["e"] = self.e
-        dict.update(self.demographic_params)
+        # dict["e"] = self.e
+        # dict.update(self.demographic_params)
 
         return dict
