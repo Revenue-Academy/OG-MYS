@@ -136,6 +136,7 @@
     "alpha_T": [0.09],
     "alpha_G": [0.03],
     "alpha_I": [0.0003],
+    "initial_Kg_ratio": 0.2,
     "rho_G": 0.1,
     "debt_ratio_ss": 1.0,
     "initial_debt_ratio": 0.62,
