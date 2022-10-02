@@ -34,11 +34,23 @@ Define functions
 def get_un_data(variable_code, country_id='458', start_year=2022,
                 end_year=2022):
     """
+    This function retrieves data from the United Nations Data Portal API
+    for UN population data (see
+    https://population.un.org/dataportal/about/dataapi)
+
+    Args:
+        variable_code (str): variable code for UN data
+        country_id (str): country id for UN data
+        start_year (int): start year for UN data
+        end_year (int): end year for UN data
+
+    Returns:
+        df (Pandas DataFrame): DataFrame of UN data
     """
     target = (
         "https://population.un.org/dataportalapi/api/v1/data/indicators/" +
         variable_code + "/locations/" + country_id + "/start/"
-        + start_year + "/end/" + end_year
+        + str(start_year) + "/end/" + str(end_year)
     )
 
     # get data from url
