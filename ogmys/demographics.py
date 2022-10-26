@@ -5,14 +5,11 @@ model
 ------------------------------------------------------------------------
 """
 # Import packages
-from lib2to3.pgen2.pgen import DFAState
 import os
 import requests
-import json
 import numpy as np
 import scipy.optimize as opt
 import pandas as pd
-import scipy.interpolate as si
 from ogcore import utils
 from ogcore import parameter_plots as pp
 
@@ -91,10 +88,6 @@ def get_fert(totpers, min_yr, max_yr, graph=False):
     """
     This function generates a vector of fertility rates by model period
     age that corresponds to the fertility rate data by age in years.
-    (Source: Office of the Registrar General & Census Commissioner: See
-    Statement [Table] 19 of
-    http://www.censusindia.gov.in/vital_statistics/SRS_Report_2016/
-    7.Chap_3-Fertility_Indicators-2016.pdf)
 
     Args:
         totpers (int): total number of agent life periods (E+S), >= 3
@@ -108,49 +101,23 @@ def get_fert(totpers, min_yr, max_yr, graph=False):
             of life
 
     """
-    # Read raw data
-    pop_file = utils.read_file(
-        CUR_PATH, os.path.join('data', 'demographic',
-                               'india_pop_data.csv'))
-    pop_data = pd.read_csv(pop_file, encoding='utf-8')
-    pop_data_samp = pop_data[(pop_data['Age'] >= min_yr - 1) &
-                             (pop_data['Age'] <= max_yr - 1)]
-    age_year_all = pop_data_samp['Age'] + 1
-    curr_pop = np.array(pop_data_samp['2011'], dtype='f')
-    curr_pop_pct = curr_pop / curr_pop.sum()
-    # divide by 2000 because fertility rates per woman and we want per
-    # household
-    fert_data = np.array([0.0, 1.0, 3.0, 10.7, 135.4, 166.0, 91.7, 32.7,
-                          11.3, 4.1, 1.0, 0.0]) / 2000
-    age_midp = np.array([9, 12, 15, 17, 22, 27, 32, 37, 42, 47, 52, 57])
-    # Generate interpolation functions for fertility rates
-    fert_func = si.interp1d(age_midp, fert_data, kind='cubic')
-    # Calculate average fertility rate in each age bin using trapezoid
-    # method with a large number of points in each bin.
-    binsize = (max_yr - min_yr + 1) / totpers
-    num_sub_bins = float(10000)
-    len_subbins = (np.float64(100 * num_sub_bins)) / totpers
-    age_sub = (np.linspace(np.float64(binsize) / num_sub_bins,
-               np.float64(max_yr), int(num_sub_bins*max_yr)) -
-               0.5 * np.float64(binsize) / num_sub_bins)
-    curr_pop_sub = np.repeat(np.float64(curr_pop_pct) /
-                             num_sub_bins, num_sub_bins)
-    fert_rates_sub = np.zeros(curr_pop_sub.shape)
-    pred_ind = (age_sub > age_midp[0]) * (age_sub < age_midp[-1])
-    age_pred = age_sub[pred_ind]
-    fert_rates_sub[pred_ind] = np.float64(fert_func(age_pred))
-    fert_rates = np.zeros(totpers)
-    end_sub_bin = 0
-    for i in range(totpers):
-        beg_sub_bin = int(end_sub_bin)
-        end_sub_bin = int(np.rint((i + 1) * len_subbins))
-        fert_rates[i] = ((curr_pop_sub[beg_sub_bin:end_sub_bin] *
-                          fert_rates_sub[beg_sub_bin:end_sub_bin]).sum()
-                         / curr_pop_sub[beg_sub_bin:end_sub_bin].sum())
+    # Read UN data
+    df = get_un_data('68')
+    # put in vector
+    fert_rates = df.value.values
+    # fill in with zeros for ages  < 15 and > 49
+    # NOTE: this assumes min_year < 15 and max_yr > 49
+    fert_rates = np.append(fert_rates, np.zeros(max_yr - 49))
+    fert_rates = np.append(np.zeros(15 - min_yr), fert_rates)
+
+    # Rebin data in the case that model period not equal to one calendar
+    # year
+    if fert_rates.shape[0] != totpers:
+        fert_rates = pop_rebin(fert_rates, totpers)
 
     # if graph:  # need to fix plot function for new data output
     #     pp.plot_fert_rates(fert_rates, age_midp, totpers, min_yr, max_yr,
-    #                        fert_data, fert_rates, output_dir=OUTPUT_DIR)
+    #                        fert_rates, fert_rates, output_dir=OUTPUT_DIR)
 
     return fert_rates
 
@@ -159,7 +126,6 @@ def get_mort(totpers, min_yr, max_yr, graph=False):
     """
     This function generates a vector of mortality rates by model period
     age.
-    Source: Census of India, 2011
 
     Args:
         totpers (int): total number of agent life periods (E+S), >= 3
@@ -174,48 +140,17 @@ def get_mort(totpers, min_yr, max_yr, graph=False):
         infmort_rate (scalar): infant mortality rate
 
     """
-    # Get current population data (2011) for weighting
-    pop_file = utils.read_file(
-        CUR_PATH, os.path.join('data', 'demographic',
-                               'india_pop_data.csv'))
-    pop_data = pd.read_csv(pop_file, encoding='utf-8')
-    pop_data_samp = pop_data[(pop_data['Age'] >= min_yr - 1) &
-                             (pop_data['Age'] <= max_yr - 1)]
-    age_year_all = pop_data_samp['Age'] + 1
-    curr_pop = np.array(pop_data_samp['2011'], dtype='f')
-    curr_pop_pct = curr_pop / curr_pop.sum()
-    # Get mortality rate by age data
-    infmort_rate = 0.0482
-    # Get fertility rate by age-bin data
-    mort_data = (np.array([2.9, 1.0, 0.7, 1.3, 1.6, 1.8, 2.3, 2.7, 4.0,
-                           5.5, 8.3, 12.2, 20.1, 33.2, 49.9, 73.6, 104.8,
-                           167.6]) / 1000)
-    age_midp = np.array([2.5, 7, 12, 17, 22, 27, 32,  37, 42, 47, 52,
-                         57, 62, 67, 72, 77, 82, 100])
-    # Generate interpolation functions for fertility rates
-    mort_func = si.interp1d(age_midp, mort_data, kind='cubic')
-    # Calculate average fertility rate in each age bin using trapezoid
-    # method with a large number of points in each bin.
-    binsize = (max_yr - min_yr + 1) / totpers
-    num_sub_bins = float(10000)
-    len_subbins = (np.float64(100 * num_sub_bins)) / totpers
-    age_sub = (np.linspace(np.float64(binsize) / num_sub_bins,
-               np.float64(max_yr), int(num_sub_bins * max_yr)) -
-               0.5 * np.float64(binsize) / num_sub_bins)
-    curr_pop_sub = np.repeat(np.float64(curr_pop_pct) /
-                             num_sub_bins, num_sub_bins)
-    mort_rates_sub = np.zeros(curr_pop_sub.shape)
-    pred_ind = (age_sub > age_midp[0]) * (age_sub < age_midp[-1])
-    age_pred = age_sub[pred_ind]
-    mort_rates_sub[pred_ind] = np.float64(mort_func(age_pred))
-    mort_rates = np.zeros(totpers)
-    end_sub_bin = 0
-    for i in range(totpers):
-        beg_sub_bin = int(end_sub_bin)
-        end_sub_bin = int(np.rint((i + 1) * len_subbins))
-        mort_rates[i] = ((curr_pop_sub[beg_sub_bin:end_sub_bin] *
-                          mort_rates_sub[beg_sub_bin:end_sub_bin]).sum()
-                         / curr_pop_sub[beg_sub_bin:end_sub_bin].sum())
+    # Read UN data
+    df = get_un_data('80')
+    # put in vector
+    mort_rates = df.value.values
+
+    # TODO: check that in UN data mort rate of age 0 is equal to infant mort rate
+    # Rebin data in the case that model period not equal to one calendar
+    # year
+    if mort_rates.shape[0] != totpers:
+        mort_rates = pop_rebin(mort_rates, totpers)
+
     mort_rates[-1] = 1  # Mortality rate in last period is set to 1
 
     if graph:
@@ -230,7 +165,7 @@ def get_mort(totpers, min_yr, max_yr, graph=False):
             output_dir=OUTPUT_DIR,
         )
 
-    return mort_rates, infmort_rate
+    return mort_rates, mort_rates[0]
 
 
 def pop_rebin(curr_pop_dist, totpers_new):
