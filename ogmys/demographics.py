@@ -30,6 +30,9 @@ Define functions
 ------------------------------------------------------------------------
 """
 
+# Age data: ages 0 - 100+ (male, female, both sexes), value is number of people (not a fraction)
+# Mortality data: ages 0 - 100+ (male, female, both sexes), value is a rate
+# Fertility data: ages 15-49, both sexes only, values is a rate (but of what - some are > 1)
 
 def get_un_data(variable_code, country_id='458', start_year=2022,
                 end_year=2022):
@@ -72,7 +75,14 @@ def get_un_data(variable_code, country_id='458', start_year=2022,
         # Store the next page in a data frame
         df_temp = pd.json_normalize(j['data'])
         # Append next page to the data frame
-        df = df.append(df_temp)
+        df = pd.concat([df, df_temp])
+    # keep just what is needed from data
+    df = df[df.variant == 'Median']
+    df = df[df.sex == 'Both sexes'][['timeLabel', 'ageLabel', 'value']]
+    df.rename({'timeLabel': 'year', 'ageLabel': 'age'}, axis=1, inplace=True)
+    df.loc[df.age == '100+', 'age'] = 100
+    df.age = df.age.astype(int)
+    df.year = df.year.astype(int)
 
     return df
 
