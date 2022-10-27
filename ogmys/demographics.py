@@ -31,8 +31,10 @@ Define functions
 # Mortality data: ages 0 - 100+ (male, female, both sexes), value is a rate
 # Fertility data: ages 15-49, both sexes only, values is a rate (but of what - some are > 1)
 
-def get_un_data(variable_code, country_id='458', start_year=2022,
-                end_year=2022):
+
+def get_un_data(
+    variable_code, country_id="458", start_year=2022, end_year=2022
+):
     """
     This function retrieves data from the United Nations Data Portal API
     for UN population data (see
@@ -48,9 +50,14 @@ def get_un_data(variable_code, country_id='458', start_year=2022,
         df (Pandas DataFrame): DataFrame of UN data
     """
     target = (
-        "https://population.un.org/dataportalapi/api/v1/data/indicators/" +
-        variable_code + "/locations/" + country_id + "/start/"
-        + str(start_year) + "/end/" + str(end_year)
+        "https://population.un.org/dataportalapi/api/v1/data/indicators/"
+        + variable_code
+        + "/locations/"
+        + country_id
+        + "/start/"
+        + str(start_year)
+        + "/end/"
+        + str(end_year)
     )
 
     # get data from url
@@ -60,24 +67,24 @@ def get_un_data(variable_code, country_id='458', start_year=2022,
     # Convert JSON into a pandas DataFrame.
     # pd.json_normalize flattens the JSON to accomodate nested lists
     # within the JSON structure
-    df = pd.json_normalize(j['data'])
+    df = pd.json_normalize(j["data"])
     # Loop until there are new pages with data
-    while j['nextPage'] is not None:
+    while j["nextPage"] is not None:
         # Reset the target to the next page
-        target = j['nextPage']
+        target = j["nextPage"]
         # call the API for the next page
         response = requests.get(target)
         # Convert response to JSON format
         j = response.json()
         # Store the next page in a data frame
-        df_temp = pd.json_normalize(j['data'])
+        df_temp = pd.json_normalize(j["data"])
         # Append next page to the data frame
         df = pd.concat([df, df_temp])
     # keep just what is needed from data
-    df = df[df.variant == 'Median']
-    df = df[df.sex == 'Both sexes'][['timeLabel', 'ageLabel', 'value']]
-    df.rename({'timeLabel': 'year', 'ageLabel': 'age'}, axis=1, inplace=True)
-    df.loc[df.age == '100+', 'age'] = 100
+    df = df[df.variant == "Median"]
+    df = df[df.sex == "Both sexes"][["timeLabel", "ageLabel", "value"]]
+    df.rename({"timeLabel": "year", "ageLabel": "age"}, axis=1, inplace=True)
+    df.loc[df.age == "100+", "age"] = 100
     df.age = df.age.astype(int)
     df.year = df.year.astype(int)
 
@@ -102,7 +109,7 @@ def get_fert(totpers, min_yr, max_yr, graph=False):
 
     """
     # Read UN data
-    df = get_un_data('68')
+    df = get_un_data("68")
     # put in vector
     fert_rates = df.value.values
     # fill in with zeros for ages  < 15 and > 49
@@ -141,7 +148,7 @@ def get_mort(totpers, min_yr, max_yr, graph=False):
 
     """
     # Read UN data
-    df = get_un_data('80')
+    df = get_un_data("80")
     # put in vector
     mort_rates = df.value.values
 
@@ -193,17 +200,16 @@ def pop_rebin(curr_pop_dist, totpers_new):
         curr_pop_new = curr_pop_dist
     elif int(totpers_new) < totpers_orig:
         num_sub_bins = float(10000)
-        curr_pop_sub = np.repeat(np.float64(curr_pop_dist) /
-                                 num_sub_bins, num_sub_bins)
-        len_subbins = ((np.float64(totpers_orig*num_sub_bins)) /
-                       totpers_new)
+        curr_pop_sub = np.repeat(
+            np.float64(curr_pop_dist) / num_sub_bins, num_sub_bins
+        )
+        len_subbins = (np.float64(totpers_orig * num_sub_bins)) / totpers_new
         curr_pop_new = np.zeros(totpers_new, dtype=np.float64)
         end_sub_bin = 0
         for i in range(totpers_new):
             beg_sub_bin = int(end_sub_bin)
             end_sub_bin = int(np.rint((i + 1) * len_subbins))
-            curr_pop_new[i] = \
-                curr_pop_sub[beg_sub_bin:end_sub_bin].sum()
+            curr_pop_new[i] = curr_pop_sub[beg_sub_bin:end_sub_bin].sum()
         # Return curr_pop_new to single precision float (float32)
         # datatype
         curr_pop_new = np.float32(curr_pop_new)
@@ -235,7 +241,7 @@ def get_imm_resid(totpers, min_yr, max_yr):
     start_year = 2016
     num_years = 4
     end_year = start_year + num_years - 1
-    df = get_un_data('47', start_year, end_year)
+    df = get_un_data("47", start_year, end_year)
 
     # separate pop dist by year and put into dictionary of arrays
     pop_dict = {}
@@ -261,16 +267,18 @@ def get_imm_resid(totpers, min_yr, max_yr):
     # individuals
     pop_mat_dict = {}
     pop_mat_dict[0] = np.vstack(
-            (pop_dict[t][:-1], pop_dict[t + 1][:-1], pop_dict[t + 2][:-1])
+        (pop_dict[t][:-1], pop_dict[t + 1][:-1], pop_dict[t + 2][:-1])
     )
     pop_mat_dict[1] = np.vstack(
-            (pop_dict[t][1:], pop_dict[t + 1][1:], pop_dict[t + 2][1:])
+        (pop_dict[t][1:], pop_dict[t + 1][1:], pop_dict[t + 2][1:])
     )
     pop_mat_dict[2] = np.vstack(
-            (pop_dict[t + 1][1:], pop_dict[t + 2][1:], pop_dict[t + 3][1:])
+        (pop_dict[t + 1][1:], pop_dict[t + 2][1:], pop_dict[t + 3][1:])
     )
     mort_mat = np.tile(mort_rates[:-1], (num_years - 1, 1))
-    imm_mat[:, 1:] = (pop_mat_dict[2] - (1 - mort_mat) * pop_mat_dict[0]) / pop_mat_dict[1]
+    imm_mat[:, 1:] = (
+        pop_mat_dict[2] - (1 - mort_mat) * pop_mat_dict[0]
+    ) / pop_mat_dict[1]
     # Final estimated immigration rates are the averages over 3 years
     imm_rates = imm_mat.mean(axis=0)
 
@@ -374,12 +382,13 @@ def get_pop_objs(E, S, T, min_yr, max_yr, curr_year, GraphDiag=False):
     # Generate time path of the nonstationary population distribution
     omega_path_lev = np.zeros((E + S, T + S))
     pop_file = utils.read_file(
-        CUR_PATH, os.path.join('data', 'demographic',
-                               'india_pop_data.csv'))
-    pop_data = pd.read_csv(pop_file, encoding='utf-8')
-    pop_data_samp = pop_data[(pop_data['Age'] >= min_yr - 1) &
-                             (pop_data['Age'] <= max_yr - 1)]
-    pop_2011 = np.array(pop_data_samp['2011'], dtype='f')
+        CUR_PATH, os.path.join("data", "demographic", "india_pop_data.csv")
+    )
+    pop_data = pd.read_csv(pop_file, encoding="utf-8")
+    pop_data_samp = pop_data[
+        (pop_data["Age"] >= min_yr - 1) & (pop_data["Age"] <= max_yr - 1)
+    ]
+    pop_2011 = np.array(pop_data_samp["2011"], dtype="f")
     # Generate the current population distribution given that E+S might
     # be less than max_yr-min_yr+1
     age_per_EpS = np.arange(1, E + S + 1)
