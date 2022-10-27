@@ -240,7 +240,7 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     start_year = 2016
     num_years = 4
     end_year = start_year + num_years - 1
-    df = get_un_data('47', start_year=start_year, end_year=end_year)
+    df = get_un_data("47", start_year=start_year, end_year=end_year)
 
     # separate pop dist by year and put into dictionary of arrays
     pop_dict = {}
@@ -290,7 +290,7 @@ def immsolve(imm_rates, *args):
     difference in two consecutive periods stationary population
     distributions. This vector of differences is the zero-function
     objective used to solve for the immigration rates vector, similar to
-    the original immigration rates vector from get_imm_resid(), that
+    the original immigration rates vector from get_imm_rates(), that
     sets the steady-state population distribution by age equal to the
     population distribution in period int(1.5*S)
 
@@ -320,7 +320,16 @@ def immsolve(imm_rates, *args):
     return omega_errs
 
 
-def get_pop_objs(E, S, T, min_age, max_age, curr_year, GraphDiag=False):
+def get_pop_objs(
+    E=20,
+    S=80,
+    T=320,
+    min_age=0,
+    max_age=100,
+    data_year=2022,
+    model_year=2022,
+    GraphDiag=False,
+):
     """
     This function produces the demographics objects to be used in the
     OG-MYS model package.
@@ -334,7 +343,7 @@ def get_pop_objs(E, S, T, min_age, max_age, curr_year, GraphDiag=False):
         min_age (int): age in years at which agents are born, >= 0
         max_age (int): age in years at which agents die with certainty,
             >= 4
-        curr_year (int): current year for which analysis will begin,
+        model_year (int): current year for which analysis will begin,
             >= 2016
         GraphDiag (bool): =True if want graphical output and printed
                 diagnostics
@@ -355,12 +364,16 @@ def get_pop_objs(E, S, T, min_age, max_age, curr_year, GraphDiag=False):
                 path, length T + S
 
     """
-    assert curr_year >= 2011
-    # age_per = np.linspace(min_age, max_age, E+S)
-    fert_rates = get_fert(E + S, min_age, max_age, graph=False)
-    mort_rates, infmort_rate = get_mort(E + S, min_age, max_age, graph=False)
+    assert model_year >= 2011 and model_year <= 2100
+    assert data_year >= 2011 and data_year <= 2100
+    assert data_year <= model_year
+
+    # Get fertility, mortality, and immigration rates
+    # will be used to generate population distribution in future years
+    fert_rates = get_fert(E + S, min_age, max_age)
+    mort_rates, infmort_rate = get_mort(E + S, min_age, max_age)
     mort_rates_S = mort_rates[-S:]
-    imm_rates_orig = get_imm_resid(E + S, min_age, max_age)
+    imm_rates_orig = get_imm_rates(E + S, min_age, max_age)
     OMEGA_orig = np.zeros((E + S, E + S))
     OMEGA_orig[0, :] = (1 - infmort_rate) * fert_rates + np.hstack(
         (imm_rates_orig[0], np.zeros(E + S - 1))
@@ -380,36 +393,31 @@ def get_pop_objs(E, S, T, min_age, max_age, curr_year, GraphDiag=False):
 
     # Generate time path of the nonstationary population distribution
     omega_path_lev = np.zeros((E + S, T + S))
-    pop_file = utils.read_file(
-        CUR_PATH, os.path.join("data", "demographic", "india_pop_data.csv")
-    )
-    pop_data = pd.read_csv(pop_file, encoding="utf-8")
-    pop_data_samp = pop_data[
-        (pop_data["Age"] >= min_age - 1) & (pop_data["Age"] <= max_age - 1)
+    pop_data = get_un_data("47", start_year=data_year, end_year=data_year)
+    # TODO: allow one to read in multiple years of UN forecast then extrapolate from the end of that
+    pop_data_sample = pop_data[
+        (pop_data["age"] >= min_age - 1) & (pop_data["age"] <= max_age - 1)
     ]
-    pop_2011 = np.array(pop_data_samp["2011"], dtype="f")
+    pop = pop_data_sample.value.values
     # Generate the current population distribution given that E+S might
     # be less than max_age-min_age+1
     age_per_EpS = np.arange(1, E + S + 1)
-    pop_2011_EpS = pop_rebin(pop_2011, E + S)
-    pop_2011_pct = pop_2011_EpS / pop_2011_EpS.sum()
-    # Age most recent population data to the current year of analysis
-    pop_curr = pop_2011_EpS.copy()
-    data_year = 2019
+    pop_EpS = pop_rebin(pop, E + S)
+    pop_pct = pop_EpS / pop_EpS.sum()
+    # Age the data to the model year
+    pop_curr = pop_EpS.copy()
     pop_next = np.dot(OMEGA_orig, pop_curr)
     g_n_curr = (pop_next[-S:].sum() - pop_curr[-S:].sum()) / pop_curr[
         -S:
-    ].sum()  # g_n in 2019
-    pop_past = pop_curr  # assume 2018-2019 pop
-    # Age the data to the current year
-    for per in range(curr_year - data_year):
+    ].sum()  # g_n in data year
+    pop_past = pop_curr
+    for per in range(model_year - data_year):
         pop_next = np.dot(OMEGA_orig, pop_curr)
         g_n_curr = (pop_next[-S:].sum() - pop_curr[-S:].sum()) / pop_curr[
             -S:
         ].sum()
         pop_past = pop_curr
         pop_curr = pop_next
-
     # Generate time path of the population distribution
     omega_path_lev[:, 0] = pop_curr.copy()
     for per in range(1, T + S):
@@ -597,10 +605,10 @@ def get_pop_objs(E, S, T, min_age, max_age, curr_year, GraphDiag=False):
         )
         pp.plot_population_path(
             age_per_EpS,
-            pop_2011_pct,
+            pop_pct,
             omega_path_lev,
             omega_SSfx,
-            curr_year,
+            model_year,
             E,
             S,
             output_dir=OUTPUT_DIR,
