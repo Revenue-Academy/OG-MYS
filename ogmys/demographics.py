@@ -158,9 +158,9 @@ def get_mort(totpers, min_yr, max_yr, graph=False):
             totpers,
             min_yr,
             max_yr,
-            age_year_all,
-            mort_rates_all,
-            infmort_rate,
+            age_year_all,  # TODO: make sure right arg passed to this function...
+            mort_rates,
+            mort_rates[0],
             mort_rates,
             output_dir=OUTPUT_DIR,
         )
@@ -231,41 +231,48 @@ def get_imm_resid(totpers, min_yr, max_yr):
             each period of life, length E+S
 
     """
-    pop_file = utils.read_file(
-        CUR_PATH, os.path.join('data', 'demographic',
-                               'india_pop_data.csv'))
-    pop_data = pd.read_csv(pop_file, encoding='utf-8')
-    pop_data_samp = pop_data[(pop_data['Age'] >= min_yr - 1) &
-                             (pop_data['Age'] <= max_yr - 1)]
-    age_year_all = pop_data_samp['Age'] + 1
-    pop_2001, pop_2011 = (
-        np.array(pop_data_samp['2001'], dtype='f'),
-        np.array(pop_data_samp['2011'], dtype='f'))
-    pop_2001_EpS = pop_rebin(pop_2001, totpers)
-    pop_2011_EpS = pop_rebin(pop_2011, totpers)
-    # Create three years of estimated immigration rates for youngest age
+    # Read UN data
+    start_year = 2016
+    num_years = 4
+    end_year = start_year + num_years - 1
+    df = get_un_data('47', start_year, end_year)
+
+    # separate pop dist by year and put into dictionary of arrays
+    pop_dict = {}
+    for t in range(num_years):
+        pop_dist = df[df.year == start_year + t].value.values
+        pop_dict[t] = pop_rebin(pop_dist, totpers)
+
+    # Create num_years - 1 years of estimated immigration rates for youngest age
     # individuals
-    imm_mat = np.zeros((2, totpers))
+    imm_mat = np.zeros((num_years - 1, totpers))
+    pop_list = []
+    for t in range(num_years):
+        pop_list.append(pop_dict[t][0])
+    pop11vec = np.array(pop_list[:-1])
+    pop21vec = np.array(pop_list[1:])
     fert_rates = get_fert(totpers, min_yr, max_yr, False)
     mort_rates, infmort_rate = get_mort(totpers, min_yr, max_yr, False)
-    newbornvec = np.dot(fert_rates, pop_2001_EpS).T
-    # imm_mat[:, 0] = ((pop_2011_EpS[0] - (1 - infmort_rate) * newbornvec)
-    #                  / pop_2001_EpS[0])
-    imm_mat[:, 0] = 0
-    # Estimate immigration rates for all other-aged
+    newbornvec = np.dot(
+        fert_rates, np.vstack((pop_dict[0], pop_dict[1], pop_dict[2])).T
+    )
+    imm_mat[:, 0] = (pop21vec - (1 - infmort_rate) * newbornvec) / pop11vec
+    # Estimate num_years - 1 years of immigration rates for all other-aged
     # individuals
-    mort_rate10 = np.zeros_like(mort_rates[:-10])  # 10-year mort rate
-    for i in range(10):
-        mort_rate10 = mort_rates[i:-10 + i] + mort_rate10
-    mort_rate10[mort_rate10 > 1.0] = 1.0
-    imm_mat[:, 10:] = ((pop_2011_EpS[10:] - (1 - mort_rate10) *
-                       pop_2001_EpS[:-10]) / pop_2001_EpS[10:])
-    # Final estimated immigration rates are the averages over years
+    pop_mat_dict = {}
+    pop_mat_dict[0] = np.vstack(
+            (pop_dict[t][:-1], pop_dict[t + 1][:-1], pop_dict[t + 2][:-1])
+    )
+    pop_mat_dict[1] = np.vstack(
+            (pop_dict[t][1:], pop_dict[t + 1][1:], pop_dict[t + 2][1:])
+    )
+    pop_mat_dict[2] = np.vstack(
+            (pop_dict[t + 1][1:], pop_dict[t + 2][1:], pop_dict[t + 3][1:])
+    )
+    mort_mat = np.tile(mort_rates[:-1], (num_years - 1, 1))
+    imm_mat[:, 1:] = (pop_mat_dict[2] - (1 - mort_mat) * pop_mat_dict[0]) / pop_mat_dict[1]
+    # Final estimated immigration rates are the averages over 3 years
     imm_rates = imm_mat.mean(axis=0)
-    neg_rates = imm_rates < 0
-    # For India, data were 10 years apart, so make annual rate
-    imm_rates = ((1 + np.absolute(imm_rates)) ** (1 / 10)) - 1
-    imm_rates[neg_rates] = -1 * imm_rates[neg_rates]
 
     return imm_rates
 
