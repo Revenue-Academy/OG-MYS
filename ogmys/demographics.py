@@ -116,7 +116,9 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     # NOTE: this assumes min_year < 15 and max_age > 49
     fert_rates = np.append(fert_rates, np.zeros(max_age - 49))
     fert_rates = np.append(np.zeros(15 - min_age), fert_rates)
-
+    # divide by 2000 because fertility rates are number of births per
+    # 1000 woman and we want births per HH
+    fert_rates = fert_rates / 2000
     # Rebin data in the case that model period not equal to one calendar
     # year
     if fert_rates.shape[0] != totpers:
