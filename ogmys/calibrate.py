@@ -53,11 +53,13 @@ class Calibration:
         # self.zeta = bequest_transmission.get_bequest_matrix()
 
         # demographics
-        # self.demographic_params = demographics.get_pop_objs(
-        #     p.E, p.S, p.T, 1, 100, p.start_year
-        # )
+        self.demographic_params = demographics.get_pop_objs(
+            p.E, p.S, p.T, 1, 100, p.start_year, p.start_year, GraphDiag=True
+        )
         # demographics for 80 period lives (needed for getting e below)
-        # demog80 = demographics.get_pop_objs(20, 80, p.T, 1, 100, p.start_year)
+        demog80 = demographics.get_pop_objs(
+            20, 80, p.T, 1, 100, p.start_year, p.start_year
+        )
 
         # earnings profiles
         # self.e = income.get_e_interp(
@@ -194,7 +196,7 @@ class Calibration:
                 )
         if p.S != S_in_tax_params:
             print(
-                "Warning: There is a discrepency between the ages"
+                "Warning: There is a discrepancy between the ages"
                 + " used in the model and those in the tax functions!!"
             )
         # After printing warning, make it work by tiling
@@ -372,6 +374,6 @@ class Calibration:
         # dict["zeta"] = self.zeta
         dict.update(self.macro_params)
         # dict["e"] = self.e
-        # dict.update(self.demographic_params)
+        dict.update(self.demographic_params)
 
         return dict
