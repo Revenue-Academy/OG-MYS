@@ -26,11 +26,6 @@ Define functions
 ------------------------------------------------------------------------
 """
 
-# Age data: ages 0 - 100+ (male, female, both sexes), value is number of people (not a fraction)
-# Mortality data: ages 0 - 100+ (male, female, both sexes), value is a rate
-# Fertility data: ages 15-49, both sexes only, values is a rate (but of what - some are > 1)
-
-
 def get_un_data(
     variable_code, country_id="458", start_year=2022, end_year=2022
 ):
@@ -64,7 +59,7 @@ def get_un_data(
     # Converts call into JSON
     j = response.json()
     # Convert JSON into a pandas DataFrame.
-    # pd.json_normalize flattens the JSON to accomodate nested lists
+    # pd.json_normalize flattens the JSON to accommodate nested lists
     # within the JSON structure
     df = pd.json_normalize(j["data"])
     # Loop until there are new pages with data
