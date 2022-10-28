@@ -43,18 +43,19 @@ def get_macro_params():
     )
 
     # make sure all dollar value data are in billions
-    fred_data["Debt held by public"] = fred_data["Debt held by public"] / 1000
+    # fred_data["Debt held by public"] = fred_data["Debt held by public"] / 1000
 
     # Separate quartely, monthly, and annual dataseries
     fred_data_q = (
         fred_data[
             [
-                "Debt held by public",
+                # "Debt held by public",
                 "Nominal GDP",
-                "Total gov transfer payments",
-                "Social Security payments",
-                "Gov expenditures to",
-                "Gov interest payments",
+                "Debt to GDP ratio",
+                # "Total gov transfer payments",
+                # "Social Security payments",
+                "Gov expenditures to GDP",
+                # "Gov interest payments",
                 "GDP Per Capita",
             ]
         ]
@@ -62,7 +63,7 @@ def get_macro_params():
         .mean()
     )
     fred_data_a = fred_data[["Labor share"]]
-    fred_data_d = fred_data[["BAA Corp Bond Rates", "10 year govt bond rate"]]
+    # fred_data_d = fred_data[["BAA Corp Bond Rates", "10 year govt bond rate"]]
 
     # initialize a dictionary of parameters
     macro_parameters = {}
@@ -70,26 +71,26 @@ def get_macro_params():
     # print(fred_data.loc(str(baseline_date)))
     # find initial_debt_ratio
     macro_parameters["initial_debt_ratio"] = pd.Series(
-        fred_data_q["Debt held by public"] / fred_data_q["Nominal GDP"]
+        fred_data_q["Debt to GDP ratio"]
     ).loc[baseline_date]
 
     # find alpha_T
-    macro_parameters["alpha_T"] = pd.Series(
-        (
-            fred_data_q["Total gov transfer payments"]
-            - fred_data_q["Social Security payments"]
-        )
-        / fred_data_q["Nominal GDP"]
-    ).loc[baseline_date]
+    # macro_parameters["alpha_T"] = pd.Series(
+    #     (
+    #         fred_data_q["Total gov transfer payments"]
+    #         - fred_data_q["Social Security payments"]
+    #     )
+    #     / fred_data_q["Nominal GDP"]
+    # ).loc[baseline_date]
 
     # find alpha_G
     macro_parameters["alpha_G"] = pd.Series(
         (
-            fred_data_q["Gov expenditures"]
-            - fred_data_q["Total gov transfer payments"]
-            - fred_data_q["Gov interest payments"]
+            fred_data_q["Gov expenditures to GDP"]
+            # - fred_data_q["Total gov transfer payments"]
+            # - fred_data_q["Gov interest payments"]
         )
-        / fred_data_q["Nominal GDP"]
+        # / fred_data_q["Nominal GDP"]
     ).loc[baseline_date]
 
     # find gamma
@@ -101,18 +102,18 @@ def get_macro_params():
     )
 
     # # estimate r_gov_shift and r_gov_scale
-    rate_data = fred_data_d[
-        ["10 year govt bond rate", "BAA Corp Bond Rates"]
-    ].dropna()
-    rate_data["constant"] = np.ones(len(rate_data.index))
-    # mod = PanelOLS(fred_data['10 year govt bond rate'],
-    #                fred_data[['constant', 'BAA Corp Bond Rates']])
-    mod = sm.OLS(
-        rate_data["10 year govt bond rate"],
-        rate_data[["constant", "BAA Corp Bond Rates"]],
-    )
-    res = mod.fit()
-    macro_parameters["r_gov_shift"] = res.params["BAA Corp Bond Rates"]
-    macro_parameters["r_gov_scale"] = res.params["constant"]
+    # rate_data = fred_data_d[
+    #     ["10 year govt bond rate", "BAA Corp Bond Rates"]
+    # ].dropna()
+    # rate_data["constant"] = np.ones(len(rate_data.index))
+    # # mod = PanelOLS(fred_data['10 year govt bond rate'],
+    # #                fred_data[['constant', 'BAA Corp Bond Rates']])
+    # mod = sm.OLS(
+    #     rate_data["10 year govt bond rate"],
+    #     rate_data[["constant", "BAA Corp Bond Rates"]],
+    # )
+    # res = mod.fit()
+    # macro_parameters["r_gov_shift"] = res.params["BAA Corp Bond Rates"]
+    # macro_parameters["r_gov_scale"] = res.params["constant"]
 
     return macro_parameters
