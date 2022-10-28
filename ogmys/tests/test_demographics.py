@@ -19,6 +19,24 @@ def test_get_pop_objs():
     assert np.allclose(pop_dict["omega_SS"], pop_dict["omega"][-1, :])
 
 
+def test_omega_sum1():
+    """
+    Test of the that omega sums to one in each period
+    """
+    E = 20
+    S = 80
+    T = int(round(4.0 * S))
+    start_year = 2019
+
+    pop_dict = demographics.get_pop_objs(
+        E, S, T, 1, 100, start_year, start_year, False
+    )
+
+    assert np.allclose(pop_dict["omega_SS"].sum(), 1.0)
+    assert np.allclose(pop_dict["omega"].sum(axis=1).max(), 1.0)
+    assert np.allclose(pop_dict["omega"].sum(axis=1).min(), 1.0)
+
+
 def test_pop_smooth():
     """
     Test that population growth rates evolve smoothly.
@@ -78,6 +96,15 @@ def test_get_mort():
     S = 100
     mort_rates, infmort_rate = demographics.get_mort(S, 0, 100, graph=False)
     assert mort_rates.shape[0] == S
+
+
+def test_get_mort_lt1():
+    """
+    Test that mortality rates don't exceed 1
+    """
+    S = 100
+    mort_rates, infmort_rate = demographics.get_mort(S, 0, 100, graph=False)
+    assert mort_rates.max() <= 1.0
 
 
 def test_infant_mort():
