@@ -3,6 +3,7 @@ from distributed import Client
 import os
 import json
 import time
+import copy
 from ogmys.calibrate import Calibration
 from ogcore.parameters import Specifications
 from ogcore import output_tables as ot
@@ -44,7 +45,21 @@ def main():
             )
         )
     )
-
+    c = Calibration(p, client=client)
+    # update tax function parameters in Specifications Object
+    d = c.get_dict()
+    # additional parameters to change
+    updated_params = {
+        "omega": d["omega"],
+        "g_n_ss": d["g_n_ss"],
+        "omega_SS": d["omega_SS"],
+        "surv_rate": d["surv_rate"],
+        "rho": d["rho"],
+        "g_n": d["g_n"],
+        "imm_rates": d["imm_rates"],
+        "omega_S_preTP": d["omega_S_preTP"],
+    }
+    p.update_specifications(updated_params)
     # Run model
     start_time = time.time()
     runner(p, time_path=True, client=client)
@@ -57,22 +72,9 @@ def main():
     """
 
     # create new Specifications object for reform simulation
-    p2 = Specifications(
-        baseline=False,
-        num_workers=num_workers,
-        baseline_dir=base_dir,
-        output_base=reform_dir,
-    )
-    # Update parameters for baseline from default json file
-    p2.update_specifications(
-        json.load(
-            open(
-                os.path.join(
-                    CUR_DIR, "..", "ogmys", "ogmys_default_parameters.json"
-                )
-            )
-        )
-    )
+    p2 = copy.deepcopy(p)
+    p2.baseline = False
+    p2.output_base = reform_dir
     # additional parameters to change
     updated_params = {
         "cit_rate": [[0.35]],
