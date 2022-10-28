@@ -10,7 +10,6 @@ import requests
 import numpy as np
 import scipy.optimize as opt
 import pandas as pd
-from ogcore import utils
 from ogcore import parameter_plots as pp
 
 
@@ -620,7 +619,7 @@ def get_pop_objs(
     # mort_rates_S, and g_n_path
     pop_dict = {
         "omega": omega_path_S.T,
-        "g_n_SS": g_n_SS,
+        "g_n_ss": g_n_SS,
         "omega_SS": omega_SSfx[-S:] / omega_SSfx[-S:].sum(),
         "surv_rate": 1 - mort_rates_S,
         "rho": mort_rates_S,
