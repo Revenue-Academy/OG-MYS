@@ -81,6 +81,7 @@ def get_un_data(
     df.loc[df.age == "100+", "age"] = 100
     df.age = df.age.astype(int)
     df.year = df.year.astype(int)
+    df = df[df.age < 100]
 
     return df
 
@@ -110,13 +111,12 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     # NOTE: this assumes min_year < 15 and max_age > 49
     fert_rates = np.append(fert_rates, np.zeros(max_age - 49))
     fert_rates = np.append(np.zeros(15 - min_age), fert_rates)
-    # divide by 2000 because fertility rates are number of births per
+    # divide by 1000 because fertility rates are number of births per
     # 1000 woman and we want births per HH
-    fert_rates = fert_rates / 2000
+    fert_rates = fert_rates / 1000
     # Rebin data in the case that model period not equal to one calendar
     # year
-    if fert_rates.shape[0] != totpers:
-        fert_rates = pop_rebin(fert_rates, totpers)
+    fert_rates = pop_rebin(fert_rates, totpers)
 
     # if graph:  # need to fix plot function for new data output
     #     pp.plot_fert_rates(fert_rates, age_midp, totpers, min_age, max_age,
@@ -151,8 +151,7 @@ def get_mort(totpers=100, min_age=0, max_age=100, graph=False):
     # TODO: check that in UN data mort rate of age 0 is equal to infant mort rate
     # Rebin data in the case that model period not equal to one calendar
     # year
-    if mort_rates.shape[0] != totpers:
-        mort_rates = pop_rebin(mort_rates, totpers)
+    mort_rates = pop_rebin(mort_rates, totpers)
 
     mort_rates[-1] = 1  # Mortality rate in last period is set to 1
 
@@ -241,8 +240,9 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     # separate pop dist by year and put into dictionary of arrays
     pop_dict = {}
     for t in range(num_years):
-        pop_dist = df[df.year == start_year + t].value.values
+        pop_dist = df[(df.year == start_year + t) & (df.age < 100)].value.values
         pop_dict[t] = pop_rebin(pop_dist, totpers)
+        pop_dict[t] = pop_dist
 
     # Create num_years - 1 years of estimated immigration rates for youngest age
     # individuals
@@ -254,6 +254,7 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     pop21vec = np.array(pop_list[1:])
     fert_rates = get_fert(totpers, min_age, max_age, False)
     mort_rates, infmort_rate = get_mort(totpers, min_age, max_age, False)
+    print('Pop size = ', pop_dist.shape, fert_rates.shape, mort_rates.shape)
     newbornvec = np.dot(
         fert_rates, np.vstack((pop_dict[0], pop_dict[1], pop_dict[2])).T
     )
@@ -276,6 +277,9 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     ) / pop_mat_dict[1]
     # Final estimated immigration rates are the averages over 3 years
     imm_rates = imm_mat.mean(axis=0)
+    # replace highest agg imm rate bc it doesn't make sense
+    imm_rates[-1] = imm_rates[-2]
+    imm_rates = np.zeros_like(imm_rates)
 
     return imm_rates
 
@@ -495,7 +499,7 @@ def get_pop_objs(
         omegaSSvTmaxdiff = np.absolute(omega_SS_orig - omega_SSfx).max()
         if omegaSSvTmaxdiff > 0.0003:
             print(
-                "POP. WARNING: The maximimum absolute difference "
+                "POP. WARNING: The maximum absolute difference "
                 + "between any two corresponding points in the original"
                 + " and adjusted steady-state population "
                 + "distributions is"
