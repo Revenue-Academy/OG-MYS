@@ -107,6 +107,15 @@ def test_get_mort_lt1():
     assert mort_rates.max() <= 1.0
 
 
+def test_get_mort_lastperiod():
+    """
+    Test that mortality rate in last period is 1
+    """
+    S = 100
+    mort_rates, infmort_rate = demographics.get_mort(S, 0, 100, graph=False)
+    assert np.allclose(mort_rates[-1], 1.0)
+
+
 def test_infant_mort():
     """
     Test of function to get mortality rates from data
