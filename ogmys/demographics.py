@@ -10,6 +10,7 @@ import requests
 import numpy as np
 import scipy.optimize as opt
 import pandas as pd
+import matplotlib.pyplot as plt
 from ogcore import parameter_plots as pp
 
 
@@ -25,6 +26,7 @@ if os.access(OUTPUT_DIR, os.F_OK) is False:
 Define functions
 ------------------------------------------------------------------------
 """
+
 
 def get_un_data(
     variable_code, country_id="458", start_year=2022, end_year=2022
@@ -146,28 +148,45 @@ def get_mort(totpers=100, min_age=0, max_age=100, graph=False):
     # Read UN data
     df = get_un_data("80")
     # put in vector
-    mort_rates = df.value.values
-
-    # TODO: check that in UN data mort rate of age 0 is equal to infant mort rate
+    mort_rates_data = df.value.values
+    # In UN data, mortality rates for 0 year olds are the infant
+    # mortality rates
+    infmort_rate = mort_rates_data[0]
     # Rebin data in the case that model period not equal to one calendar
     # year
-    mort_rates = pop_rebin(mort_rates, totpers)
+    mort_rates = pop_rebin(mort_rates_data, totpers)
 
-    mort_rates[-1] = 1  # Mortality rate in last period is set to 1
+    # Mortality rate in last period is set to 1
+    mort_rates[-1] = 1
 
     if graph:
-        pp.plot_mort_rates_data(
-            totpers,
-            min_age,
-            max_age,
-            age_year_all,  # TODO: make sure right arg passed to this function...
-            mort_rates,
-            mort_rates[0],
-            mort_rates,
+        output_dir = OUTPUT_DIR
+        # Using pyplot here until update to OG-Core mort rates plotting function
+        plt.plot(
+            df.age.values,
+            mort_rates_data,
+            source="United Nations Population Prospects",
             output_dir=OUTPUT_DIR,
         )
+        plt.xlabel(r"Age $s$")
+        plt.ylabel(r"Mortality rate $\rho_{s}$")
+        plt.legend(loc="upper left")
+        plt.text(
+            -5,
+            -0.2,
+            "Source: United Nations Population Prospects.",
+            fontsize=9,
+        )
+        plt.tight_layout(rect=(0, 0.03, 1, 1))
+        # Save or return figure
+        if output_dir:
+            output_path = os.path.join(output_dir, "mort_rates")
+            plt.savefig(output_path)
+            plt.close()
+        else:
+            plt.show()
 
-    return mort_rates, mort_rates[0]
+    return mort_rates, infmort_rate
 
 
 def pop_rebin(curr_pop_dist, totpers_new):
@@ -240,7 +259,9 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     # separate pop dist by year and put into dictionary of arrays
     pop_dict = {}
     for t in range(num_years):
-        pop_dist = df[(df.year == start_year + t) & (df.age < 100)].value.values
+        pop_dist = df[
+            (df.year == start_year + t) & (df.age < 100)
+        ].value.values
         pop_dict[t] = pop_rebin(pop_dist, totpers)
         pop_dict[t] = pop_dist
 
@@ -254,7 +275,6 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     pop21vec = np.array(pop_list[1:])
     fert_rates = get_fert(totpers, min_age, max_age, False)
     mort_rates, infmort_rate = get_mort(totpers, min_age, max_age, False)
-    print('Pop size = ', pop_dist.shape, fert_rates.shape, mort_rates.shape)
     newbornvec = np.dot(
         fert_rates, np.vstack((pop_dict[0], pop_dict[1], pop_dict[2])).T
     )
