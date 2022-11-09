@@ -10,6 +10,9 @@ from ogcore import output_tables as ot
 from ogcore import output_plots as op
 from ogcore.execute import runner
 from ogcore.utils import safe_read_pickle
+from ogcore import SS
+
+# SS.ENFORCE_SOLUTION_CHECKS = False
 
 
 def main():
@@ -58,8 +61,11 @@ def main():
         "g_n": d["g_n"],
         "imm_rates": d["imm_rates"],
         "omega_S_preTP": d["omega_S_preTP"],
+        "e": d["e"],
+        # "constant_demographics": True,
     }
     p.update_specifications(updated_params)
+    print("SS growth rate: ", p.g_n_ss)
     # Run model
     start_time = time.time()
     runner(p, time_path=True, client=client)
