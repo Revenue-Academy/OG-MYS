@@ -1,5 +1,4 @@
-from ogmys import demographics
-from ogmys import macro_params
+from ogmys import demographics, macro_params, income
 import os
 import numpy as np
 from ogcore import txfunc
@@ -62,13 +61,13 @@ class Calibration:
         )
 
         # earnings profiles
-        # self.e = income.get_e_interp(
-        #     p.S,
-        #     self.demographic_params["omega_SS"],
-        #     demog80["omega_SS"],
-        #     p.lambdas,
-        #     plot=False,
-        # )
+        self.e = income.get_e_interp(
+            p.S,
+            self.demographic_params["omega_SS"],
+            demog80["omega_SS"],
+            p.lambdas,
+            plot=False,
+        )
 
     # Tax Functions
     def get_tax_function_parameters(
@@ -373,7 +372,7 @@ class Calibration:
         # dict["eta"] = self.eta
         # dict["zeta"] = self.zeta
         dict.update(self.macro_params)
-        # dict["e"] = self.e
+        dict["e"] = self.e
         dict.update(self.demographic_params)
 
         return dict
