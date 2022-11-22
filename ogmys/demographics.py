@@ -13,7 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from ogcore import parameter_plots as pp
 
-
+UN_COUNTRY_CODE = "458"  # UN code for MYS
 # create output director for figures
 CUR_PATH = os.path.split(os.path.abspath(__file__))[0]
 OUTPUT_DIR = os.path.join(CUR_PATH, "OUTPUT", "Demographics")
@@ -29,7 +29,7 @@ Define functions
 
 
 def get_un_data(
-    variable_code, country_id="458", start_year=2022, end_year=2022
+    variable_code, country_id=UN_COUNTRY_CODE, start_year=2022, end_year=2022
 ):
     """
     This function retrieves data from the United Nations Data Portal API
@@ -83,7 +83,7 @@ def get_un_data(
     df.loc[df.age == "100+", "age"] = 100
     df.age = df.age.astype(int)
     df.year = df.year.astype(int)
-    df = df[df.age < 100]
+    df = df[df.age <= 100]
 
     return df
 
@@ -114,8 +114,8 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     fert_rates = np.append(fert_rates, np.zeros(max_age - 49))
     fert_rates = np.append(np.zeros(15 - min_age), fert_rates)
     # divide by 1000 because fertility rates are number of births per
-    # 1000 woman and we want births per HH
-    fert_rates = fert_rates / 1000
+    # 1000 woman and we want births per person (might update to account from fraction men more correctly - below assumes 50/50 men and women)
+    fert_rates = fert_rates / 2000
     # Rebin data in the case that model period not equal to one calendar
     # year
     fert_rates = pop_rebin(fert_rates, totpers)
@@ -124,10 +124,30 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     #     pp.plot_fert_rates(fert_rates, age_midp, totpers, min_age, max_age,
     #                        fert_rates, fert_rates, output_dir=OUTPUT_DIR)
 
+    output_dir = OUTPUT_DIR
+    # Using pyplot here until update to OG-Core mort rates plotting function
+    plt.plot(
+        np.arange(min_age, max_age + 1),
+        fert_rates,
+    )
+    plt.xlabel(r"Age $s$")
+    plt.ylabel(r"Fertility rate")
+    plt.legend(loc="upper left")
+    plt.text(
+        -5,
+        -0.2,
+        "Source: United Nations Population Prospects.",
+        fontsize=9,
+    )
+    plt.tight_layout(rect=(0, 0.03, 1, 1))
+    output_path = os.path.join(output_dir, "fert_rates")
+    plt.savefig(output_path)
+    plt.close()
+
     return fert_rates
 
 
-def get_mort(totpers=100, min_age=0, max_age=100, graph=False):
+def get_mort(totpers=100, min_age=0, max_age=100, graph=True):
     """
     This function generates a vector of mortality rates by model period
     age.
@@ -154,7 +174,7 @@ def get_mort(totpers=100, min_age=0, max_age=100, graph=False):
     infmort_rate = mort_rates_data[0]
     # Rebin data in the case that model period not equal to one calendar
     # year
-    mort_rates = pop_rebin(mort_rates_data, totpers)
+    mort_rates = pop_rebin(mort_rates_data[1:], totpers)
 
     # Mortality rate in last period is set to 1
     mort_rates[-1] = 1
@@ -165,8 +185,6 @@ def get_mort(totpers=100, min_age=0, max_age=100, graph=False):
         plt.plot(
             df.age.values,
             mort_rates_data,
-            source="United Nations Population Prospects",
-            output_dir=OUTPUT_DIR,
         )
         plt.xlabel(r"Age $s$")
         plt.ylabel(r"Mortality rate $\rho_{s}$")
@@ -260,7 +278,7 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     pop_dict = {}
     for t in range(num_years):
         pop_dist = df[
-            (df.year == start_year + t) & (df.age < 100)
+            (df.year == start_year + t) & (df.age <= 100) & (df.age > 0)
         ].value.values
         pop_dict[t] = pop_rebin(pop_dist, totpers)
         pop_dict[t] = pop_dist
@@ -298,8 +316,36 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     # Final estimated immigration rates are the averages over 3 years
     imm_rates = imm_mat.mean(axis=0)
     # replace highest agg imm rate bc it doesn't make sense
-    imm_rates[-1] = imm_rates[-2]
-    imm_rates = np.zeros_like(imm_rates)
+    # imm_rates[-1] = imm_rates[-2]
+
+    output_dir = OUTPUT_DIR
+    # get imm rates from UN data
+    # imm_df = get_un_data("65", start_year=2019, end_year=2019)
+    # print(imm_df)
+    # print('SIZES = ', imm_df.value.values.shape, imm_rates.shape)
+        # Using pyplot here until update to OG-Core mort rates plotting function
+    plt.plot(
+        np.arange(min_age, max_age + 1),
+        imm_rates,
+        label="Estimated",
+    )
+    # plt.plot(
+    #     np.arange(min_age, max_age + 1),
+    #     imm_df.value.values,
+    #     label="UN Data",)
+    plt.xlabel(r"Age $s$")
+    plt.ylabel(r"Immigration Rates")
+    plt.legend(loc="upper left")
+    plt.text(
+        -5,
+        -0.2,
+        "Source: United Nations Population Prospects.",
+        fontsize=9,
+    )
+    plt.tight_layout(rect=(0, 0.03, 1, 1))
+    output_path = os.path.join(output_dir, "imm_rates_w_un_data.png")
+    plt.savefig(output_path)
+    plt.close()
 
     return imm_rates
 
@@ -346,9 +392,9 @@ def get_pop_objs(
     T=320,
     min_age=0,
     max_age=100,
-    data_year=2022,
+    data_year=2021,
     model_year=2022,
-    GraphDiag=False,
+    GraphDiag=True,
 ):
     """
     This function produces the demographics objects to be used in the
@@ -386,7 +432,7 @@ def get_pop_objs(
     """
     assert model_year >= 2011 and model_year <= 2100
     assert data_year >= 2011 and data_year <= 2100
-    assert data_year <= model_year
+    assert data_year < model_year  # need data year to be before model year to get omega_S_preTP
 
     # Get fertility, mortality, and immigration rates
     # will be used to generate population distribution in future years
