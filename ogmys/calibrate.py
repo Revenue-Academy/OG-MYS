@@ -53,11 +53,11 @@ class Calibration:
 
         # demographics
         self.demographic_params = demographics.get_pop_objs(
-            p.E, p.S, p.T, 1, 100, p.start_year, p.start_year, GraphDiag=True
+            p.E, p.S, p.T, 1, 100, p.start_year - 1, p.start_year, GraphDiag=True
         )
         # demographics for 80 period lives (needed for getting e below)
         demog80 = demographics.get_pop_objs(
-            20, 80, p.T, 1, 100, p.start_year, p.start_year
+            20, 80, p.T, 1, 100, p.start_year - 1, p.start_year
         )
 
         # earnings profiles
