@@ -62,7 +62,6 @@ def main():
         "imm_rates": d["imm_rates"],
         "omega_S_preTP": d["omega_S_preTP"],
         "e": d["e"],
-        # "constant_demographics": True,
     }
     p.update_specifications(updated_params)
     print("SS growth rate: ", p.g_n_ss)
