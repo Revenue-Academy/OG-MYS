@@ -250,7 +250,6 @@ def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
         xtol=1e-10,
     )
     a = x.root
-    print("Estimate of a = ", a)
     e_new = emat_orig * np.exp(a * emat_orig)
     e_new_scaled = (
         e_new
