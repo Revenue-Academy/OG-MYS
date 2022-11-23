@@ -64,7 +64,7 @@ def main():
         "e": d["e"],
     }
     p.update_specifications(updated_params)
-    print("SS growth rate: ", p.g_n_ss)
+
     # Run model
     start_time = time.time()
     runner(p, time_path=True, client=client)
