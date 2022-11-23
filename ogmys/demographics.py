@@ -114,7 +114,8 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     fert_rates = np.append(fert_rates, np.zeros(max_age - 49))
     fert_rates = np.append(np.zeros(15 - min_age), fert_rates)
     # divide by 1000 because fertility rates are number of births per
-    # 1000 woman and we want births per person (might update to account from fraction men more correctly - below assumes 50/50 men and women)
+    # 1000 woman and we want births per person (might update to account
+    # from fraction men more correctly - below assumes 50/50 men and women)
     fert_rates = fert_rates / 2000
     # Rebin data in the case that model period not equal to one calendar
     # year
@@ -127,7 +128,7 @@ def get_fert(totpers=100, min_age=0, max_age=100, graph=False):
     output_dir = OUTPUT_DIR
     # Using pyplot here until update to OG-Core mort rates plotting function
     plt.plot(
-        np.arange(min_age, max_age + 1),
+        np.arange(totpers),
         fert_rates,
     )
     plt.xlabel(r"Age $s$")
@@ -319,20 +320,12 @@ def get_imm_rates(totpers=100, min_age=0, max_age=100):
     # imm_rates[-1] = imm_rates[-2]
 
     output_dir = OUTPUT_DIR
-    # get imm rates from UN data
-    # imm_df = get_un_data("65", start_year=2019, end_year=2019)
-    # print(imm_df)
-    # print('SIZES = ', imm_df.value.values.shape, imm_rates.shape)
-        # Using pyplot here until update to OG-Core mort rates plotting function
+    # Using pyplot here until update to OG-Core mort rates plotting function
     plt.plot(
-        np.arange(min_age, max_age + 1),
+        np.arange(totpers),
         imm_rates,
         label="Estimated",
     )
-    # plt.plot(
-    #     np.arange(min_age, max_age + 1),
-    #     imm_df.value.values,
-    #     label="UN Data",)
     plt.xlabel(r"Age $s$")
     plt.ylabel(r"Immigration Rates")
     plt.legend(loc="upper left")
@@ -432,7 +425,8 @@ def get_pop_objs(
     """
     assert model_year >= 2011 and model_year <= 2100
     assert data_year >= 2011 and data_year <= 2100
-    assert data_year < model_year  # need data year to be before model year to get omega_S_preTP
+    # need data year to be before model year to get omega_S_preTP
+    assert data_year < model_year
 
     # Get fertility, mortality, and immigration rates
     # will be used to generate population distribution in future years
@@ -460,7 +454,8 @@ def get_pop_objs(
     # Generate time path of the nonstationary population distribution
     omega_path_lev = np.zeros((E + S, T + S))
     pop_data = get_un_data("47", start_year=data_year, end_year=data_year)
-    # TODO: allow one to read in multiple years of UN forecast then extrapolate from the end of that
+    # TODO: allow one to read in multiple years of UN forecast then
+    # extrapolate from the end of that
     pop_data_sample = pop_data[
         (pop_data["age"] >= min_age - 1) & (pop_data["age"] <= max_age - 1)
     ]
