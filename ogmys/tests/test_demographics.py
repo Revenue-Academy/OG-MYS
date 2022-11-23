@@ -13,7 +13,7 @@ def test_get_pop_objs():
     start_year = 2019
 
     pop_dict = demographics.get_pop_objs(
-        E, S, T, 1, 100, start_year, start_year, False
+        E, S, T, 1, 100, start_year, start_year + 1, False
     )
 
     assert np.allclose(pop_dict["omega_SS"], pop_dict["omega"][-1, :])
@@ -29,7 +29,7 @@ def test_omega_sum1():
     start_year = 2019
 
     pop_dict = demographics.get_pop_objs(
-        E, S, T, 1, 100, start_year, start_year, False
+        E, S, T, 1, 100, start_year, start_year + 1, False
     )
 
     assert np.allclose(pop_dict["omega_SS"].sum(), 1.0)
@@ -47,7 +47,7 @@ def test_pop_smooth():
     start_year = 2019
 
     pop_dict = demographics.get_pop_objs(
-        E, S, T, 1, 100, start_year, start_year, False
+        E, S, T, 1, 100, start_year, start_year + 1, False
     )
 
     assert np.any(
@@ -69,7 +69,7 @@ def test_imm_smooth():
     start_year = 2019
 
     pop_dict = demographics.get_pop_objs(
-        E, S, T, 1, 100, start_year, start_year, False
+        E, S, T, 1, 100, start_year, start_year + 1, False
     )
 
     assert np.any(
@@ -123,7 +123,7 @@ def test_infant_mort():
     mort_rates, infmort_rate = demographics.get_mort(100, 0, 100, graph=False)
     # check that infant mortality equals rate hardcoded into
     # demographics.py
-    assert np.allclose(infmort_rate, 0.0059427475)
+    assert np.allclose(infmort_rate, 0.005939185)
 
 
 def test_pop_rebin():
