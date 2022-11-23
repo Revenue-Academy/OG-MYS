@@ -122,9 +122,10 @@
                     0.96
                 ],
     "sigma": 1.5,
-    "gamma": [0.61],
-    "epsilon": [1.0],
-    "Z": [[1.0]],
+    "gamma": [0.61, 0.61],
+    "gamma_g": [0.0, 0.0],
+    "epsilon": [1.0, 1.0],
+    "Z": [[1.0, 1.0]],
     "delta_annual": 0.05,
     "ltilde": 1.0,
     "world_int_rate_annual": [0.04],
@@ -142,7 +143,14 @@
     "initial_debt_ratio": 0.62,
     "r_gov_scale": 1.0,
     "r_gov_shift": 0.00,
-    "cit_rate": [[0.24]],
+    "M": 2,
+    "I": 2,
+    "io_matrix": [
+                    [1.0, 0.0],
+                    [0.0, 1.0]
+                ],
+    "alpha_c": [0.15, 0.85],
+    "cit_rate": [[0.0, 0.24]],
     "c_corp_share_of_assets": 0.7,
     "adjustment_factor_for_cit_receipts": [0.30],
     "tau_c": [[0.0]],
@@ -1715,7 +1723,7 @@
     "maxiter": 250,
     "mindist_SS": 1e-09,
     "mindist_TPI": 1e-05,
-    "initial_guess_r_SS": 0.05,
+    "initial_guess_r_SS": 0.06,
     "initial_guess_TR_SS": 0.01,
     "initial_guess_factor_SS": 139355.154,
     "omega": [
