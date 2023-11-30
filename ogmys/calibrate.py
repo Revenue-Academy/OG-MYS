@@ -62,17 +62,17 @@ class Calibration:
             p.start_year,
             GraphDiag=True,
         )
-        # demographics for 80 period lives (needed for getting e below)
-        demog80 = demographics.get_pop_objs(
-            20, 80, p.T, 1, 100, p.start_year - 1, p.start_year
-        )
 
         # earnings profiles
+        # Find the e matrix for MYS by changing the earnings profiles for
+        # the USA to match the gini in MYS
+        # (=41.1 in WB data: https://data.worldbank.org/indicator/SI.POV.GINI))
         self.e = income.get_e_interp(
+            p.E,
             p.S,
-            self.demographic_params["omega_SS"],
-            demog80["omega_SS"],
+            p.J,
             p.lambdas,
+            self.demographic_params["omega_SS"],
             plot=False,
         )
 
