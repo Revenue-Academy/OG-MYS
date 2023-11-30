@@ -149,9 +149,8 @@ def get_e_interp(E, S, J, lambdas, age_wgts, gini_to_match=41.1, plot=False):
 
         # Make sure that values in abil_midp are within interpolating
         # bounds
-        if (
-            abil_midp.min() < emat_j_midp.min()
-            or abil_midp.max() > (1- usa_params.lambdas[-1])
+        if abil_midp.min() < emat_j_midp.min() or abil_midp.max() > (
+            1 - usa_params.lambdas[-1]
         ):
             err = (
                 "One or more entries in abilities vector (lambdas) is outside the "

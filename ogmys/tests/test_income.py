@@ -41,8 +41,6 @@ def test_get_e_interp_exception():
     Test that RuntimeError is abil_wgts not suitable for interpolation
     """
     age_wgts = np.ones(80) * 1 / 80
-    abil_wgts = np.array(
-        [0.25, 0.25, 0.2, 0.1, 0.1, 0.09, 0.009999, 0.000001]
-    )
+    abil_wgts = np.array([0.25, 0.25, 0.2, 0.1, 0.1, 0.09, 0.009999, 0.000001])
     with pytest.raises(RuntimeError):
         income.get_e_interp(20, 80, 8, abil_wgts, age_wgts)
