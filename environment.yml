@@ -2,12 +2,11 @@ name: ogmys-dev
 channels:
 - conda-forge
 dependencies:
-- python>=3.7.7, <3.11  # This restriction can be removed as soon as these packages support Python 3.11
+- python>=3.7.7
 - ipython
 - setuptools
 - psutil
-- openssl=1.1.1  # This is a requirement of the UN data portal which we are using in demographics.py
-- numpy<=1.21.2  # This restriction can be removed as soon as Numba supports NumPy 1.22
+- numpy
 - scipy>=1.7.1
 - pandas>=1.2.5
 - matplotlib

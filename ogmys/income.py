@@ -1,10 +1,3 @@
-"""
------------------------------------------------------------------
-Functions for created the matrix of ability levels, e.  This can
-only be used for looking at the 25, 50, 70, 80, 90, 99, and 100th
-percentiles, as it uses fitted polynomials to those percentiles.
------------------------------------------------------------------
-"""
 import numpy as np
 import scipy.optimize as opt
 import scipy.interpolate as si
@@ -19,171 +12,32 @@ CUR_PATH = os.path.abspath(os.path.dirname(__file__))
 OUTPUT_DIR = os.path.join(CUR_PATH, "OUTPUT", "ability")
 
 
-def arctan_func(xvals, a, b, c):
-    r"""
-    This function generates predicted ability levels given data (xvals)
-    and parameters a, b, and c, from the following arctan function:
-
-    .. math::
-        y = (-a / \pi) * \arctan(b * x + c) + (a / 2)
+def get_e_interp(E, S, J, lambdas, age_wgts, gini_to_match=41.1, plot=False):
+    """
+    This function takes the calibrated lifetime earnings profiles
+    (abilities, e matrix) from OG-USA and then adjusts the shape of those
+    profiles to match the Gini coefficient for another economy. The
+    Gini coefficient to match is given in the argument gini_to_match.
+    Note that the calibrated OG-USA e matrix is of size (80, 10), where
+    80 is the number of ages and 10 is the number of ability types.
+    Users of this function specify their own number of age groups (S)
+    and ability types (J). The function will map the fitted functions
+    into these dimensions so long as the percentiles of the ability types
+    given in lambdas is not more refined at the top end than those in
+    OG-USA (which identifies up to the top 0.1%).
 
     Args:
-        xvals (Numpy array): data inputs to arctan function
-        a (scalar): scale parameter for arctan function
-        b (scalar): curvature parameter for arctan function
-        c (scalar): shift parameter for arctan function
-
-    Returns:
-        yvals (Numpy array): predicted values (output) of arctan
-            function
-
-    """
-    yvals = (-a / np.pi) * np.arctan(b * xvals + c) + (a / 2)
-    return yvals
-
-
-def arctan_deriv_func(xvals, a, b, c):
-    r"""
-    This function generates predicted derivatives of arctan function
-    given data (xvals) and parameters a, b, and c. The functional form
-    of the derivative of the function is the following:
-
-    .. math::
-        y = - (a * b) / (\pi * (1 + (b * xvals + c)^2))
-
-    Args:
-        xvals (Numpy array): data inputs to arctan derivative function
-        a (scalar): scale parameter for arctan function
-        b (scalar): curvature parameter for arctan function
-        c (scalar): shift parameter for arctan function
-
-    Returns:
-        yvals (Numpy array): predicted values (output) of arctan
-            derivative function
-
-    """
-    yvals = -(a * b) / (np.pi * (1 + (b * xvals + c) ** 2))
-    return yvals
-
-
-def arc_error(abc_vals, params):
-    """
-    This function returns a vector of errors in the three criteria on
-    which the arctan function is fit to predict extrapolated ability in
-    ages 81 to 100.::
-
-        1) The arctan function value at age 80 must match the estimated
-           original function value at age 80.
-        2) The arctan function slope at age 80 must match the estimated
-           original function slope at age 80.
-        3) The level of ability at age 100 must be a given fraction
-           (abil_deprec) below the ability level at age 80.
-
-    Args:
-        abc_vals (tuple): contains (a,b,c)
-
-            * a (scalar): scale parameter for arctan function
-            * b (scalar): curvature parameter for arctan function
-            * c (scalar): shift parameter for arctan function
-        params (tuple): contains (first_point, coef1, coef2, coef3,
-            abil_deprec)
-
-            * first_point (scalar): ability level at age 80, > 0
-            * coef1 (scalar): coefficient in log ability equation on
-                linear term in age
-            * coef2 (scalar): coefficient in log ability equation on
-                quadratic term in age
-            * coef3 (scalar): coefficient in log ability equation on
-                cubic term in age
-            * abil_deprec (scalar): ability depreciation rate between
-                ages 80 and 100, in (0, 1).
-
-    Returns:
-        error_vec (Numpy array): errors ([error1, error2, error3])
-
-            * error1 (scalar): error between ability level at age 80
-                from original function minus the predicted ability at
-                age 80 from the arctan function given a, b, and c
-            * error2 (scalar): error between the slope of the original
-                function at age 80 minus the slope of the arctan
-                function at age 80 given a, b, and c
-            * error3 (scalar): error between the ability level at age
-                100 predicted by the original model value times
-                abil_deprec minus the ability predicted by the arctan
-                function at age 100 given a, b, and c
-
-    """
-    a, b, c = abc_vals
-    first_point, coef1, coef2, coef3, abil_deprec = params
-    error1 = first_point - arctan_func(80, a, b, c)
-    if (3 * coef3 * 80**2 + 2 * coef2 * 80 + coef1) < 0:
-        error2 = (
-            3 * coef3 * 80**2 + 2 * coef2 * 80 + coef1
-        ) * first_point - arctan_deriv_func(80, a, b, c)
-    else:
-        error2 = -0.02 * first_point - arctan_deriv_func(80, a, b, c)
-    error3 = abil_deprec * first_point - arctan_func(100, a, b, c)
-    error_vec = np.array([error1, error2, error3])
-
-    return error_vec
-
-
-def arctan_fit(first_point, coef1, coef2, coef3, abil_deprec, init_guesses):
-    """
-    This function fits an arctan function to the last 20 years of the
-    ability levels of a particular ability group to extrapolate
-    abilities by trying to match the slope in the 80th year and the
-    ability depreciation rate between years 80 and 100.
-
-    Args:
-        first_point (scalar): ability level at age 80, > 0
-        coef1 (scalar): coefficient in log ability equation on linear
-            term in age
-        coef2 (scalar): coefficient in log ability equation on
-            quadratic term in age
-        coef3 (scalar): coefficient in log ability equation on cubic
-            term in age
-        abil_deprec (scalar): ability depreciation rate between
-            ages 80 and 100, in (0, 1)
-        init_guesses (Numpy array): initial guesses
-
-    Returns:
-        abil_last (Numpy array): extrapolated ability levels for ages
-            81 to 100, length 20
-
-    """
-    params = [first_point, coef1, coef2, coef3, abil_deprec]
-    solution = opt.root(arc_error, init_guesses, args=params, method="lm")
-    [a, b, c] = solution.x
-    old_ages = np.linspace(81, 100, 20)
-    abil_last = arctan_func(old_ages, a, b, c)
-    return abil_last
-
-
-def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
-    """
-    This function takes a source matrix of lifetime earnings profiles
-    (abilities, emat) of size (80, 7), where 80 is the number of ages
-    and 7 is the number of ability types in the source matrix, and
-    interpolates new values of a new S x J sized matrix of abilities
-    using linear interpolation. [NOTE: For this application, cubic
-    spline interpolation introduces too much curvature.]
-
-    This function also includes the two cases in which J = 9 and J = 10
-    that include higher lifetime earning percentiles calibrated using
-    Piketty and Saez (2003).
-
-
-    Args:
+        E (int): the age agents become economically active
         S (int): number of ages to interpolate. This method assumes that
-            ages are evenly spaced between the beginning of the 21st
-            year and the end of the 100th year, >= 3
-        age_wgts (Numpy array): distribution of population in each age
-            for the interpolated ages, length S
-        age_wgts_80 (Numpy array): percent of population in each
-            one-year age from 21 to 100, length 80
-        abil_wgts (Numpy array): distribution of population in each
+            ages are evenly spaced between the beginning of age E
+            up to E+S, >= 3
+        J (int): number of ability types to interpolate
+        lambdas (Numpy array): distribution of population in each
             ability group, length J
+        age_wgts (Numpy array): distribution of population in each age
+            group, length S
+        gini_to_match (float): Gini coefficient to match, default is
+            41.1, the Gini coefficient for MYS in 2019
         plot (bool): if True, creates plots of emat_orig and the new
             interpolated emat_new
 
@@ -192,16 +46,9 @@ def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
             so that population-weighted average is 1, size SxJ
 
     """
-    # Get original 80 x 7 ability matrix
-    abil_wgts_orig = np.array([0.25, 0.25, 0.2, 0.1, 0.1, 0.09, 0.01])
-    emat_orig = get_e_orig(age_wgts_80, abil_wgts_orig, plot)
-
-    # Now adjust for MYS by changing the e matrix to match the gini in
-    # MYS (=41.1 in WB data: https://data.worldbank.org/indicator/SI.POV.GINI))
-    # Note, USA gini in these data is 41.5
-    # pop_dist = abil_wgts.reshape(1, 7) * age_wgts.reshape(80, 1)
-    gini_mys_data = 41.1
-    gini_usa_data = 41.5
+    assert lambdas.shape[0] == J
+    assert age_wgts.shape[0] == S
+    # Load USA e matrix as a baseline
     usa_params = Specifications()
     usa_params.update_specifications(
         json.load(
@@ -210,38 +57,53 @@ def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
             )
         )
     )
-    gini_usa_model = utils.Inequality(
-        emat_orig, usa_params.omega_SS, usa_params.lambdas, 80, 7
-    ).gini()
 
+    # Define a function that will find the "a" in the equation:
+    # e_Y = e_USA * exp(a * e_USA)
+    # such that the e_Y produces a gini coefficient in the model that
+    # gives the same ratio between the model implied Gini's in the USA
+    # and the target country and the empirical Gini's in the USA and given
+    # by gin_to_match for the target country
     def f(
         a,
         emat_orig,
         age_wgts,
         abil_wgts,
-        gini_mys_data,
+        gini_to_match,
         gini_usa_data,
         gini_usa_model,
     ):
-        gini_mys_model = utils.Inequality(
+        gini_target_model = utils.Inequality(
             emat_orig * np.exp(a * emat_orig),
             age_wgts,
             abil_wgts,
-            80,
-            7,
+            len(age_wgts),
+            len(abil_wgts),
         ).gini()
-        error = (gini_mys_data / gini_usa_data) - (
-            gini_mys_model / gini_usa_model
+        error = (gini_to_match / gini_usa_data) - (
+            gini_target_model / gini_usa_model
         )
         return error
+
+    # Note, USA gini in the World Bank data is 41.5
+    # See https://data.worldbank.org/indicator/SI.POV.GINI
+    gini_usa_data = 41.5
+    # Find the model implied Gini for the USA
+    gini_usa_model = utils.Inequality(
+        usa_params.e,
+        usa_params.omega_SS,
+        usa_params.lambdas,
+        usa_params.S,
+        usa_params.J,
+    ).gini()
 
     x = opt.root_scalar(
         f,
         args=(
-            emat_orig,
-            age_wgts,
-            abil_wgts,
-            gini_mys_data,
+            usa_params.e,
+            usa_params.omega_SS,
+            usa_params.lambdas,
+            gini_to_match,
             gini_usa_data,
             gini_usa_model,
         ),
@@ -250,65 +112,76 @@ def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
         xtol=1e-10,
     )
     a = x.root
-    e_new = emat_orig * np.exp(a * emat_orig)
-    e_new_scaled = (
+    e_new = usa_params.e * np.exp(a * usa_params.e)
+    emat_new_scaled = (
         e_new
-        / (e_new * age_wgts.reshape(80, 1) * abil_wgts.reshape(1, 7)).sum()
+        / (
+            e_new
+            * usa_params.omega_SS.reshape(usa_params.S, 1)
+            * usa_params.lambdas.reshape(1, usa_params.J)
+        ).sum()
     )
-    emat_orig = e_new_scaled
-    # Now interpolate for the cases where S!=80 and/or J!=7
+    # Now interpolate for the cases where S and/or J not the same in the
+    # country parameterization as in the default USA parameterization
     if (
-        S == 80
+        S == usa_params.S
         and np.array_equal(
-            np.squeeze(abil_wgts),
-            np.array([0.25, 0.25, 0.2, 0.1, 0.1, 0.09, 0.01]),
+            usa_params.lambdas,
+            lambdas,
         )
         is True
     ):
-        emat_new_scaled = emat_orig
+        pass  # will return the e_new_scaled found above since dims the same
     else:
-        # generate abil_midp vector
-        J = abil_wgts.shape[0]
+        # generate vector of mid points for the Malaysian ability groups
         abil_midp = np.zeros(J)
         pct_lb = 0.0
         for j in range(J):
-            abil_midp[j] = pct_lb + 0.5 * abil_wgts[j]
-            pct_lb += abil_wgts[j]
+            abil_midp[j] = pct_lb + 0.5 * lambdas[j]
+            pct_lb += lambdas[j]
+        # generate vector of mid points for the USA ability groups
+        M = usa_params.lambdas.shape[0]
+        emat_j_midp = np.zeros(M)
+        pct_lb = 0.0
+        for m in range(M):
+            emat_j_midp[m] = pct_lb + 0.5 * usa_params.lambdas[m]
+            pct_lb += usa_params.lambdas[m]
 
         # Make sure that values in abil_midp are within interpolating
-        # bounds set by the hard coded abil_wgts_orig
-        if abil_midp.min() < 0.125 or abil_midp.max() > 0.995:
+        # bounds
+        if abil_midp.min() < emat_j_midp.min() or abil_midp.max() > (
+            1 - usa_params.lambdas[-1]
+        ):
             err = (
-                "One or more entries in abils vector is outside the "
-                + "allowable bounds."
+                "One or more entries in abilities vector (lambdas) is outside the "
+                + "allowable bounds for interpolation."
             )
             raise RuntimeError(err)
-
-        emat_j_midp = np.array(
-            [0.125, 0.375, 0.600, 0.750, 0.850, 0.945, 0.995]
+        usa_step = 80 / usa_params.S
+        emat_s_midp = np.linspace(
+            usa_params.E + 0.5 * usa_step,
+            usa_params.E + usa_params.S - 0.5 * usa_step,
+            usa_params.S,
         )
-        emat_s_midp = np.linspace(20.5, 99.5, 80)
         emat_j_mesh, emat_s_mesh = np.meshgrid(emat_j_midp, emat_s_midp)
         newstep = 80 / S
-        new_s_midp = np.linspace(20 + 0.5 * newstep, 100 - 0.5 * newstep, S)
+        new_s_midp = np.linspace(E + 0.5 * newstep, E + S - 0.5 * newstep, S)
         new_j_mesh, new_s_mesh = np.meshgrid(abil_midp, new_s_midp)
         newcoords = np.hstack(
             (
-                emat_s_mesh.reshape((80 * 7, 1)),
-                emat_j_mesh.reshape((80 * 7, 1)),
+                emat_s_mesh.reshape((usa_params.S * usa_params.J, 1)),
+                emat_j_mesh.reshape((usa_params.S * usa_params.J, 1)),
             )
         )
         emat_new = si.griddata(
             newcoords,
-            emat_orig.flatten(),
+            emat_new_scaled.flatten(),
             (new_s_mesh, new_j_mesh),
             method="linear",
         )
         emat_new_scaled = (
             emat_new
-            / (
-                emat_new * age_wgts.reshape(S, 1) * abil_wgts.reshape(1, J)
-            ).sum()
+            / (emat_new * age_wgts.reshape(S, 1) * lambdas.reshape(1, J)).sum()
         )
 
         if plot:
@@ -316,171 +189,10 @@ def get_e_interp(S, age_wgts, age_wgts_80, abil_wgts, plot=False):
             pp.plot_income_data(
                 new_s_midp,
                 abil_midp,
-                abil_wgts,
+                lambdas,
                 emat_new_scaled,
                 OUTPUT_DIR,
                 **kwargs,
             )
 
     return emat_new_scaled
-
-
-def get_e_orig(age_wgts, abil_wgts, plot=False):
-    r"""
-    This function generates the 80 x 7 matrix of lifetime earnings
-    ability profiles, corresponding to annual ages from 21 to 100 and to
-    paths based on income percentiles 0-25, 25-50, 50-70, 70-80, 80-90,
-    90-99, 99-100. The ergodic population distribution is an input in
-    order to rescale the paths so that the weighted average equals 1.
-
-    The data come from the following file:
-
-        `data/ability/FR_wage_profile_tables.xlsx`
-
-    The polynomials are of the form
-
-    .. math::
-        \ln(abil) = \alpha + \beta_{1}\text{age} + \beta_{2}\text{age}^2
-            + \beta_{3}\text{age}^3
-
-    Values come from regression analysis using IRS CWHS with hours
-    imputed from the CPS.
-
-    Args:
-        age_wgts (Numpy array): ergodic age distribution, length S
-        abil_wgts (Numpy array): population weights in each lifetime
-            earnings group, length J
-        plot (bool): if True, generates 3D plots of ability paths
-
-    Returns:
-        e_orig_scaled (Numpy array): = lifetime ability profiles scaled
-            so that population-weighted average is 1, size SxJ
-
-    """
-    # Return and error if age_wgts is not a vector of size (80,)
-    if age_wgts.shape[0] != 80:
-        err = "Vector age_wgts does not have 80 elements."
-        raise RuntimeError(err)
-    # Return and error if abil_wgts is not a vector of size (7,)
-    if abil_wgts.shape[0] != 7:
-        err = "Vector abil_wgts does not have 7 elements."
-        raise RuntimeError(err)
-
-    # 1) Generate polynomials and use them to get income profiles for
-    #    ages 21 to 80.
-    one = np.array(
-        [
-            -0.09720122,
-            0.05995294,
-            0.17654618,
-            0.21168263,
-            0.21638731,
-            0.04500235,
-            0.09229392,
-        ]
-    )
-    two = np.array(
-        [
-            0.00247639,
-            -0.00004086,
-            -0.00240656,
-            -0.00306555,
-            -0.00321041,
-            0.00094253,
-            0.00012902,
-        ]
-    )
-    three = np.array(
-        [
-            -0.00001842,
-            -0.00000521,
-            0.00001039,
-            0.00001438,
-            0.00001579,
-            -0.00001470,
-            -0.00001169,
-        ]
-    )
-    const = np.array(
-        [
-            3.41e00,
-            0.69689692,
-            -0.78761958,
-            -1.11e00,
-            -0.93939272,
-            1.60e00,
-            1.89e00,
-        ]
-    )
-    ages_short = np.tile(np.linspace(21, 80, 60).reshape((60, 1)), (1, 7))
-    log_abil_paths = (
-        const
-        + (one * ages_short)
-        + (two * (ages_short**2))
-        + (three * (ages_short**3))
-    )
-    abil_paths = np.exp(log_abil_paths)
-    e_orig = np.zeros((80, 7))
-    e_orig[:60, :] = abil_paths
-    e_orig[60:, :] = 0.0
-
-    # 2) Forecast (with some art) the path of the final 20 years of
-    #    ability types. This following variable is what percentage of
-    #    ability at age 80 ability falls to at age 100. In general, we
-    #    wanted people to lose half of their ability over a 20-year
-    #    period. The first entry is 0.47, though, because nothing higher
-    #    would converge. The second-to-last is 0.7 because this group
-    #    actually has a slightly higher ability at age 80 than the last
-    #    group, so this value makes it decrease more so it ends up being
-    #    monotonic.
-    abil_deprec = np.array([0.47, 0.5, 0.5, 0.5, 0.5, 0.7, 0.5])
-    #     Initial guesses for the arctan. They're pretty sensitive.
-    init_guesses = np.array(
-        [
-            [58, 0.0756438545595, -5.6940142786],
-            [27, 0.069, -5],
-            [35, 0.06, -5],
-            [37, 0.339936555352, -33.5987329144],
-            [70.5229181668, 0.0701993896947, -6.37746859905],
-            [35, 0.06, -5],
-            [35, 0.06, -5],
-        ]
-    )
-    for j in range(7):
-        e_orig[60:, j] = arctan_fit(
-            e_orig[59, j],
-            one[j],
-            two[j],
-            three[j],
-            abil_deprec[j],
-            init_guesses[j],
-        )
-
-    # 3) Rescale the lifetime earnings path matrix so that the
-    #    population weighted average equals 1.
-    e_orig_scaled = (
-        e_orig
-        / (e_orig * age_wgts.reshape(80, 1) * abil_wgts.reshape(1, 7)).sum()
-    )
-
-    if plot:
-        ages_long = np.linspace(21, 100, 80)
-        abil_midp = np.array([12.5, 37.5, 60.0, 75.0, 85.0, 94.5, 99.5])
-        # Plot original unscaled 80 x 7 ability matrix
-        kwargs = {"filesuffix": "_orig_unscaled"}
-        pp.plot_income_data(
-            ages_long, abil_midp, abil_wgts, e_orig, OUTPUT_DIR, **kwargs
-        )
-
-        # Plot original scaled 80 x 7 ability matrix
-        kwargs = {"filesuffix": "_orig_scaled"}
-        pp.plot_income_data(
-            ages_long,
-            abil_midp,
-            abil_wgts,
-            e_orig_scaled,
-            OUTPUT_DIR,
-            **kwargs,
-        )
-
-    return e_orig_scaled

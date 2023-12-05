@@ -12,6 +12,9 @@ import scipy.optimize as opt
 import pandas as pd
 import matplotlib.pyplot as plt
 from ogcore import parameter_plots as pp
+from ogmys.utils import get_legacy_session
+from io import StringIO
+
 
 UN_COUNTRY_CODE = "458"  # UN code for MYS
 # create output director for figures
@@ -57,9 +60,15 @@ def get_un_data(
     )
 
     # get data from url
-    response = requests.get(target)
-    # Converts call into JSON
-    j = response.json()
+    response = get_legacy_session().get(target)
+    # Check if the request was successful before processing
+    if response.status_code == 200:
+        # Converts call into JSON
+        j = response.json()
+    else:
+        print(
+            f"Failed to retrieve population data. HTTP status code: {response.status_code}"
+        )
     # Convert JSON into a pandas DataFrame.
     # pd.json_normalize flattens the JSON to accommodate nested lists
     # within the JSON structure
@@ -69,9 +78,15 @@ def get_un_data(
         # Reset the target to the next page
         target = j["nextPage"]
         # call the API for the next page
-        response = requests.get(target)
+        response = get_legacy_session().get(target)
         # Convert response to JSON format
-        j = response.json()
+        if response.status_code == 200:
+            # Converts call into JSON
+            j = response.json()
+        else:
+            print(
+                f"Failed to retrieve population data. HTTP status code: {response.status_code}"
+            )
         # Store the next page in a data frame
         df_temp = pd.json_normalize(j["data"])
         # Append next page to the data frame
@@ -415,8 +430,6 @@ def get_pop_objs(
             g_n_SS (scalar): steady-state population growth rate
             omega_SS (Numpy array): normalized steady-state population
                 distribution, length S
-            surv_rates (Numpy array): survival rates that correspond to
-                each model period of life, length S
             mort_rates (Numpy array): mortality rates that correspond to
                 each model period of life, length S
             g_n_path (Numpy array): population growth rates over the time
@@ -675,14 +688,13 @@ def get_pop_objs(
             output_dir=OUTPUT_DIR,
         )
 
-    # return omega_path_S, g_n_SS, omega_SSfx, survival rates,
+    # return omega_path_S, g_n_SS, omega_SSfx,
     # mort_rates_S, and g_n_path
     pop_dict = {
         "omega": omega_path_S.T,
         "g_n_ss": g_n_SS,
         "omega_SS": omega_SSfx[-S:] / omega_SSfx[-S:].sum(),
-        "surv_rate": 1 - mort_rates_S,
-        "rho": mort_rates_S,
+        "rho": [mort_rates_S],
         "g_n": g_n_path,
         "imm_rates": imm_rates_mat.T,
         "omega_S_preTP": omega_S_preTP,
