@@ -1,7 +1,7 @@
-from ogmys import demographics, macro_params, income
+from ogmys import macro_params, income
 import os
 import numpy as np
-from ogcore import txfunc
+from ogcore import demographics, txfunc
 from ogcore.utils import safe_read_pickle, mkdirs
 import pkg_resources
 
@@ -55,11 +55,11 @@ class Calibration:
             p.E,
             p.S,
             p.T,
-            1,
-            100,
-            p.start_year - 1,
-            p.start_year,
-            GraphDiag=True,
+            0,
+            99,
+            country_id="458",  # UN code for MYS
+            initial_data_year=p.start_year - 1,
+            final_data_year=p.start_year,
         )
 
         # earnings profiles
