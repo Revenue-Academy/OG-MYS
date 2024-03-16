@@ -90,7 +90,7 @@ def get_e_interp(E, S, J, lambdas, age_wgts, gini_to_match=41.1, plot=False):
     gini_usa_data = 41.5
     # Find the model implied Gini for the USA
     gini_usa_model = utils.Inequality(
-        usa_params.e,
+        usa_params.e[0, :, :],
         usa_params.omega_SS,
         usa_params.lambdas,
         usa_params.S,
@@ -100,7 +100,7 @@ def get_e_interp(E, S, J, lambdas, age_wgts, gini_to_match=41.1, plot=False):
     x = opt.root_scalar(
         f,
         args=(
-            usa_params.e,
+            usa_params.e[0, :, :],
             usa_params.omega_SS,
             usa_params.lambdas,
             gini_to_match,
@@ -112,7 +112,7 @@ def get_e_interp(E, S, J, lambdas, age_wgts, gini_to_match=41.1, plot=False):
         xtol=1e-10,
     )
     a = x.root
-    e_new = usa_params.e * np.exp(a * usa_params.e)
+    e_new = usa_params.e[0, :, :] * np.exp(a * usa_params.e[0, :, :])
     emat_new_scaled = (
         e_new
         / (
