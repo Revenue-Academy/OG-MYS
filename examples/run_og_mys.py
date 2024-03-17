@@ -3,6 +3,7 @@ from distributed import Client
 import os
 import json
 import time
+import numpy as np
 import copy
 from ogmys.calibrate import Calibration
 from ogcore.parameters import Specifications
@@ -17,8 +18,8 @@ from ogcore import SS
 
 def main():
     # Define parameters to use for multiprocessing
-    client = Client()
     num_workers = min(multiprocessing.cpu_count(), 7)
+    client = Client(n_workers=num_workers)
     print("Number of workers = ", num_workers)
 
     # Directories to save data
@@ -56,12 +57,12 @@ def main():
         "omega": d["omega"],
         "g_n_ss": d["g_n_ss"],
         "omega_SS": d["omega_SS"],
-        "rho": d["rho"],
+        "rho": np.array(d["rho"])[0, :, :],
         "g_n": d["g_n"],
         "imm_rates": d["imm_rates"],
         "omega_S_preTP": d["omega_S_preTP"],
         "e": d["e"],
-    }
+        }
     p.update_specifications(updated_params)
 
     # Run model
