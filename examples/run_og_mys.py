@@ -62,7 +62,7 @@ def main():
         "imm_rates": d["imm_rates"],
         "omega_S_preTP": d["omega_S_preTP"],
         "e": d["e"],
-        }
+    }
     p.update_specifications(updated_params)
 
     # Run model
